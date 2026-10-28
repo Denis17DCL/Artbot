@@ -11,7 +11,7 @@ async function getApiKey(){
  if(keyPromise)return keyPromise;
  keyPromise=(async()=>{
   const response=await fetch('https://api.opensea.io/api/v2/auth/keys',{method:'POST',headers:{accept:'application/json'},signal:AbortSignal.timeout(8000)});
-  if(!response.ok){retryAfter=Date.now()+3600000;throw new Error('KEY_CREATION_HTTP_'+response.status);}
+  if(!response.ok){retryAfter=Date.now()+(response.status===429?60000:15000);throw new Error('KEY_CREATION_HTTP_'+response.status);}
   const data=await response.json();
   if(typeof data.api_key!=='string'||!data.api_key)throw new Error('INVALID_KEY_RESPONSE');
   cachedKey=data.api_key;
