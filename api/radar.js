@@ -33,7 +33,7 @@ export default async function handler(req,res){
    const total=json.total||{},intervals=json.intervals||[];
    const daily=intervals.find(x=>x.interval==='one_day')||intervals.find(x=>x.interval==='1d')||{};
    const floor=Number(total.floor_price??total.floorPrice);
-   let bestBid=null,bidStatus='NO_OFFERS',bidCurrency='WETH';
+   let bestBid=null,bidStatus='NO_OFFERS',bidCurrency='WETH',bidDiagnostics=null;
    try{
     const bidResponse=await fetch('https://api.opensea.io/api/v2/offers/collection/'+encodeURIComponent(slug)+'?limit=100',{headers:{'x-api-key':key,'accept':'application/json'},signal:AbortSignal.timeout(8500)});
     if(!bidResponse.ok)bidStatus='HTTP_'+bidResponse.status;
@@ -41,6 +41,7 @@ export default async function handler(req,res){
      const bidData=await bidResponse.json();
      const offers=Array.isArray(bidData.offers)?bidData.offers:[];
      const now=Math.floor(Date.now()/1000);
+     bidDiagnostics={total:offers.length,active:offers.filter(o=>o.status==='ACTIVE').length,positiveQuantity:offers.filter(o=>Number(o.remaining_quantity)>0).length,currencies:[...new Set(offers.map(o=>String((o.price_per_item||o.price||{}).currency||'missing')))].slice(0,8),hasNext:Boolean(bidData.next)};
      const valid=offers.filter(o=>{
       const p=o.price_per_item||o.price||{};
       const currency=String(p.currency||'').toUpperCase();
@@ -51,7 +52,7 @@ export default async function handler(req,res){
      bidStatus=valid.length?'AVAILABLE':bidData.next?'PARTIAL_NO_MATCH':'NO_ELIGIBLE_OFFERS';
     }
    }catch{bidStatus='UPSTREAM_UNAVAILABLE';}
-   return {slug,name:names[i],floor:Number.isFinite(floor)?floor:null,bestBid,bidCurrency,bidStatus,volume24h:Number.isFinite(Number(daily.volume))?Number(daily.volume):null,sales24h:Number.isFinite(Number(daily.sales))?Number(daily.sales):null,volumeAll:Number.isFinite(Number(total.volume))?Number(total.volume):null,source:'OpenSea',asOf:new Date().toISOString()};
+   return {slug,name:names[i],floor:Number.isFinite(floor)?floor:null,bestBid,bidCurrency,bidStatus,bidDiagnostics,volume24h:Number.isFinite(Number(daily.volume))?Number(daily.volume):null,sales24h:Number.isFinite(Number(daily.sales))?Number(daily.sales):null,volumeAll:Number.isFinite(Number(total.volume))?Number(total.volume):null,source:'OpenSea',asOf:new Date().toISOString()};
   }catch{return {slug,name:names[i],error:'UPSTREAM_UNAVAILABLE'}}
  }));
  const ok=results.filter(x=>!x.error).length;
