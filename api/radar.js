@@ -46,7 +46,7 @@ export default async function handler(req,res){
       const p=o.price_per_item||o.price||{};
       const currency=String(p.currency||'').toUpperCase();
       const end=Number(o.protocol_data?.parameters?.endTime||0);
-      return o.status==='ACTIVE' && Number(o.remaining_quantity)>0 && (!end||end>now) && (currency==='WETH'||currency==='ETH') && !o.asset && !o.criteria?.traits?.length && !o.criteria?.numeric_traits?.length;
+      return o.status==='ACTIVE' && Number(o.remaining_quantity)>0 && (!end||end>now) && (currency==='WETH'||currency==='ETH') && !o.criteria?.traits?.length && !o.criteria?.numeric_traits?.length;
      }).map(o=>{const p=o.price_per_item||o.price;const decimals=Number(p.decimals??18);const n=Number(p.value)/10**decimals;return Number.isFinite(n)&&n>0?n:null}).filter(n=>n!==null);
      bestBid=valid.length?Math.max(...valid):null;
      bidStatus=valid.length?'AVAILABLE':bidData.next?'PARTIAL_NO_MATCH':'NO_ELIGIBLE_OFFERS';
