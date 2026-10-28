@@ -41,7 +41,7 @@ export default async function handler(req,res){
      const bidData=await bidResponse.json();
      const offers=Array.isArray(bidData.offers)?bidData.offers:[];
      const now=Math.floor(Date.now()/1000);
-     bidDiagnostics={total:offers.length,active:offers.filter(o=>o.status==='ACTIVE').length,positiveQuantity:offers.filter(o=>Number(o.remaining_quantity)>0).length,currencies:[...new Set(offers.map(o=>String((o.price_per_item||o.price||{}).currency||'missing')))].slice(0,8),hasNext:Boolean(bidData.next)};
+     bidDiagnostics={total:offers.length,active:offers.filter(o=>o.status==='ACTIVE').length,positiveQuantity:offers.filter(o=>Number(o.remaining_quantity)>0).length,currencies:[...new Set(offers.map(o=>String((o.price_per_item||o.price||{}).currency||'missing')))].slice(0,8),hasNext:Boolean(bidData.next),noAsset:offers.filter(o=>!o.asset).length,noTraits:offers.filter(o=>!o.criteria?.traits?.length&&!o.criteria?.numeric_traits?.length).length,unexpired:offers.filter(o=>!Number(o.protocol_data?.parameters?.endTime)||Number(o.protocol_data.parameters.endTime)>now).length};
      const valid=offers.filter(o=>{
       const p=o.price_per_item||o.price||{};
       const currency=String(p.currency||'').toUpperCase();
