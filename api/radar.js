@@ -33,7 +33,25 @@ export default async function handler(req,res){
    const total=json.total||{},intervals=json.intervals||[];
    const daily=intervals.find(x=>x.interval==='one_day')||intervals.find(x=>x.interval==='1d')||{};
    const floor=Number(total.floor_price??total.floorPrice);
-   return {slug,name:names[i],floor:Number.isFinite(floor)?floor:null,volume24h:Number.isFinite(Number(daily.volume))?Number(daily.volume):null,sales24h:Number.isFinite(Number(daily.sales))?Number(daily.sales):null,volumeAll:Number.isFinite(Number(total.volume))?Number(total.volume):null,source:'OpenSea',asOf:new Date().toISOString()};
+   let bestBid=null,bidStatus='NO_OFFERS',bidCurrency='WETH';
+   try{
+    const bidResponse=await fetch('https://api.opensea.io/api/v2/offers/collection/'+encodeURIComponent(slug)+'?limit=100',{headers:{'x-api-key':key,'accept':'application/json'},signal:AbortSignal.timeout(8500)});
+    if(!bidResponse.ok)bidStatus='HTTP_'+bidResponse.status;
+    else{
+     const bidData=await bidResponse.json();
+     const offers=Array.isArray(bidData.offers)?bidData.offers:[];
+     const now=Math.floor(Date.now()/1000);
+     const valid=offers.filter(o=>{
+      const p=o.price_per_item||o.price||{};
+      const currency=String(p.currency||'').toUpperCase();
+      const end=Number(o.protocol_data?.parameters?.endTime||0);
+      return o.status==='ACTIVE' && Number(o.remaining_quantity)>0 && (!end||end>now) && (currency==='WETH'||currency==='ETH') && !o.asset && !o.criteria?.traits?.length && !o.criteria?.numeric_traits?.length && !o.criteria?.encoded_token_ids && o.criteria?.collection?.slug===slug;
+     }).map(o=>{const p=o.price_per_item||o.price;const decimals=Number(p.decimals);const n=Number(p.value)/10**decimals;return Number.isFinite(n)&&n>0?n:null}).filter(n=>n!==null);
+     bestBid=valid.length?Math.max(...valid):null;
+     bidStatus=valid.length?'AVAILABLE':bidData.next?'PARTIAL_NO_MATCH':'NO_ELIGIBLE_OFFERS';
+    }
+   }catch{bidStatus='UPSTREAM_UNAVAILABLE';}
+   return {slug,name:names[i],floor:Number.isFinite(floor)?floor:null,bestBid,bidCurrency,bidStatus,volume24h:Number.isFinite(Number(daily.volume))?Number(daily.volume):null,sales24h:Number.isFinite(Number(daily.sales))?Number(daily.sales):null,volumeAll:Number.isFinite(Number(total.volume))?Number(total.volume):null,source:'OpenSea',asOf:new Date().toISOString()};
   }catch{return {slug,name:names[i],error:'UPSTREAM_UNAVAILABLE'}}
  }));
  const ok=results.filter(x=>!x.error).length;
